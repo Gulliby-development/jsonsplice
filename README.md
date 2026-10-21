@@ -76,6 +76,8 @@ usage: jsonsplice check FILE
 
 The path may be omitted only for `paths`. JSONC documents may contain line and block comments and a trailing comma; VALUE arguments use strict JSON.
 
+An array index may be negative to count from the end: `tags[-1]` is the last element and `tags[-2]` the one before it. `get`, `paths` and `delete` find nothing (exit code 1) when the array is shorter than the number; `set` replaces that element and fails when it does not exist; `insert` puts the value before that element (`tags[-1]` inserts before the last element, so `insert` cannot append: use the index equal to the array length). `paths` prints the absolute index (`$.tags[1]`). Quote such a path in your shell, as `[` is special there.
+
 For example, `jsonsplice paths config.jsonc` prints:
 
 ```text

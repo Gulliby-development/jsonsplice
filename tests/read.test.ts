@@ -371,3 +371,29 @@ test("get validates stdin syntax before PATH and check propagates an unreadable 
   expect(syntaxIo.calls).toEqual(["readStdin"]);
   expect(unreadableIo.calls).toEqual(["readFile:nowhere.jsonc"]);
 });
+
+test("runGet counts negative indexes from the end of an array", () => {
+  const io = fakeIo({
+    files: new Map([["input.jsonc", bytes('{"tags": ["a", "b"], "n": [[1], [2, 3]]}')]]),
+  });
+
+  expect(runGet(["input.jsonc", "tags[-1]"], new Set(), io)).toEqual({ out: '"b"\n', code: 0 });
+  expect(runGet(["input.jsonc", "tags[-2]"], new Set(), io)).toEqual({ out: '"a"\n', code: 0 });
+  expect(runGet(["input.jsonc", "tags[-3]"], new Set(), io)).toEqual({ out: "", code: 1 });
+  expect(runGet(["input.jsonc", "$.n[-1][-1]"], new Set(), io)).toEqual({
+    out: "3\n",
+    code: 0,
+  });
+  expectFail(
+    () => runGet(["input.jsonc", "tags[-1].x"], new Set(), io),
+    "at $.tags[-1] the value is a string, not an object",
+  );
+  expectFail(
+    () => runGet(["input.jsonc", "tags[-0]"], new Set(), io),
+    'invalid path "tags[-0]" at character 7',
+  );
+  expectFail(
+    () => runGet(["input.jsonc", "tags[-1000000]"], new Set(), io),
+    'invalid path "tags[-1000000]" at character 13',
+  );
+});

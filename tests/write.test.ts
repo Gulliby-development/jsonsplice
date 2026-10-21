@@ -466,3 +466,48 @@ test("dispatcher contains output and error sink exceptions without exposing deta
   expect(errorIo.reads).toEqual([]);
   expect(errorIo.writes).toEqual([]);
 });
+
+test("set, insert and delete count negative indexes from the end", () => {
+  const exec = (argv: string[]) => {
+    const io = fakeIo(new Map([["t.jsonc", utf8('{"t": ["a", "b"]}')]]));
+    const code = run(argv, io);
+    return { io, code };
+  };
+
+  const set = exec(["set", "t.jsonc", "t[-1]", '"z"']);
+  expect(set.code).toBe(0);
+  expect(set.io.outputs).toEqual(['{"t": ["a", "z"]}']);
+  expect(set.io.errors).toEqual([]);
+
+  const insertLast = exec(["insert", "t.jsonc", "t[-1]", '"x"']);
+  expect(insertLast.code).toBe(0);
+  expect(insertLast.io.outputs).toEqual(['{"t": ["a", "x", "b"]}']);
+
+  const insertFront = exec(["insert", "t.jsonc", "t[-2]", '"x"']);
+  expect(insertFront.code).toBe(0);
+  expect(insertFront.io.outputs).toEqual(['{"t": ["x", "a", "b"]}']);
+
+  const del = exec(["delete", "t.jsonc", "t[-1]"]);
+  expect(del.code).toBe(0);
+  expect(del.io.outputs).toEqual(['{"t": ["a"]}']);
+
+  const delMissing = exec(["delete", "t.jsonc", "t[-3]"]);
+  expect(delMissing.code).toBe(1);
+  expect(delMissing.io.outputs).toEqual([""]);
+  expect(delMissing.io.errors).toEqual([]);
+  expect(delMissing.io.writes).toEqual([]);
+
+  const setMissing = exec(["set", "t.jsonc", "t[-3]", "1"]);
+  expect(setMissing.code).toBe(2);
+  expect(setMissing.io.outputs).toEqual([]);
+  expect(setMissing.io.errors).toEqual([
+    "jsonsplice: cannot set [-3]: the array at $.t has 2 elements\n",
+  ]);
+
+  const insertMissing = exec(["insert", "t.jsonc", "t[-3]", "1"]);
+  expect(insertMissing.code).toBe(2);
+  expect(insertMissing.io.outputs).toEqual([]);
+  expect(insertMissing.io.errors).toEqual([
+    "jsonsplice: cannot insert at [-3]: the array at $.t has 2 elements\n",
+  ]);
+});
