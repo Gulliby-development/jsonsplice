@@ -93,14 +93,20 @@ function parseBracketStep(text: string, start: number): { step: Step; end: numbe
     return { step: { kind: "key", key }, end: position + 1 };
   }
 
-  if (!isDigit(next)) {
+  const negative = next === "-";
+  if (negative) {
+    position += 1;
+  }
+
+  const first = text[position];
+  if (!isDigit(first) || (negative && first === "0")) {
     throw invalidPath(text, position);
   }
 
   const digitStart = position;
   position += 1;
 
-  if (next === "0") {
+  if (first === "0") {
     if (isDigit(text[position])) {
       throw invalidPath(text, position);
     }
@@ -118,7 +124,10 @@ function parseBracketStep(text: string, start: number): { step: Step; end: numbe
   }
 
   return {
-    step: { kind: "index", index: Number(text.slice(digitStart, position)) },
+    step: {
+      kind: "index",
+      index: (negative ? -1 : 1) * Number(text.slice(digitStart, position)),
+    },
     end: position + 1,
   };
 }

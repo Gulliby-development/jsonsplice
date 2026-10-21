@@ -78,7 +78,6 @@ test("parseSteps reports restricted escapes and index boundaries by code point",
   expectInvalidPath('["x"x]', 'invalid path "["x"x]" at character 5');
   expectInvalidPath('["😀"]x', 'invalid path "["?"]x" at character 6');
   expectInvalidPath('["x\\', 'invalid path "["x\\" at character 5');
-  expectInvalidPath("a[-1]", 'invalid path "a[-1]" at character 3');
 });
 
 test("stepText writes indexes and bare keys", () => {
@@ -124,4 +123,55 @@ test("keyJson escapes JSON controls and preserves other characters", () => {
   expect(keyJson("\b\t\n\f\r")).toBe('"\\b\\t\\n\\f\\r"');
   expect(keyJson("\u0000\u0001\u001f")).toBe('"\\u0000\\u0001\\u001f"');
   expect(keyJson("é😀/")).toBe('"é😀/"');
+});
+
+test("parseSteps accepts negative indexes from -1 to -999999", () => {
+  expect(parseSteps("a[-1]")).toEqual([
+    { kind: "key", key: "a" },
+    { kind: "index", index: -1 },
+  ]);
+  expect(parseSteps("[-999999].b")).toEqual([
+    { kind: "index", index: -999999 },
+    { kind: "key", key: "b" },
+  ]);
+  expect(parseSteps("$[-10][0]")).toEqual([
+    { kind: "index", index: -10 },
+    { kind: "index", index: 0 },
+  ]);
+
+  let seed = 1234;
+  const values = [1, 9, 10, 99999, 999999];
+  for (let i = 0; i < 100; i += 1) {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    values.push((seed % 999999) + 1);
+  }
+
+  for (const n of values) {
+    expect(parseSteps(`a[-${n}]`)).toEqual([
+      { kind: "key", key: "a" },
+      { kind: "index", index: -n },
+    ]);
+  }
+});
+
+test("parseSteps reports malformed negative indexes at the first bad character", () => {
+  expectInvalidPath("a[-0]", 'invalid path "a[-0]" at character 4');
+  expectInvalidPath("a[-]", 'invalid path "a[-]" at character 4');
+  expectInvalidPath("a[-01]", 'invalid path "a[-01]" at character 4');
+  expectInvalidPath("a[--1]", 'invalid path "a[--1]" at character 4');
+  expectInvalidPath("a[-1000000]", 'invalid path "a[-1000000]" at character 10');
+  expectInvalidPath("a[-1", 'invalid path "a[-1" at character 5');
+  expectInvalidPath("a[1-]", 'invalid path "a[1-]" at character 4');
+});
+
+test("stepText and pathText write negative indexes as typed", () => {
+  expect(stepText({ kind: "index", index: -1 })).toBe("[-1]");
+  expect(pathText(parseSteps("a[-2].b"))).toBe("$.a[-2].b");
+
+  let seed = 99;
+  for (let i = 0; i < 100; i += 1) {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    const n = (seed % 999999) + 1;
+    expect(pathText(parseSteps(`a[-${n}].b`))).toBe(`$.a[-${n}].b`);
+  }
 });

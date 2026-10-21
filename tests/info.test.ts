@@ -237,3 +237,13 @@ test("paths strips a BOM, accepts comments and trailing commas, and sanitizes va
   });
   expect(io.calls).toEqual(["readStdin"]);
 });
+
+test("paths lists absolute indexes for a negative index and nothing for a missing one", () => {
+  const io = fakeIo({ files: new Map([["n.jsonc", utf8('{"tags": ["a", ["b", "c"]]}')]]) });
+
+  expect(runPaths(["n.jsonc", "tags[-1]"], new Set(), io)).toEqual({
+    out: 'path          kind    line  col  value\n$.tags[1]     array   1     16   -\n$.tags[1][0]  string  1     17   "b"\n$.tags[1][1]  string  1     22   "c"\nvalues      3\n',
+    code: 0,
+  });
+  expect(runPaths(["n.jsonc", "tags[-3]"], new Set(), io)).toEqual({ out: "", code: 1 });
+});

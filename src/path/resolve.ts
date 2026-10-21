@@ -41,12 +41,18 @@ export function stepInto(node: Node, step: Step, before: Step[]): Item | null {
     throw new Fail(`at ${pathText(before)} the value is ${kindName(node.kind)}, not an array`);
   }
 
-  return node.items[step.index] ?? null;
+  const position = step.index < 0 ? node.items.length + step.index : step.index;
+  if (position < 0) {
+    return null;
+  }
+
+  return node.items[position] ?? null;
 }
 
-export function lookup(root: Node, steps: Step[]): Node | null {
+export function locate(root: Node, steps: Step[]): { node: Node; steps: Step[] } | null {
   let node = root;
   const before: Step[] = [];
+  const absolute: Step[] = [];
 
   for (const step of steps) {
     const item = stepInto(node, step, before);
@@ -54,16 +60,26 @@ export function lookup(root: Node, steps: Step[]): Node | null {
       return null;
     }
 
+    if (step.kind === "index" && step.index < 0) {
+      absolute.push({ kind: "index", index: node.items.length + step.index });
+    } else {
+      absolute.push(step);
+    }
+
     node = item.value;
     before.push(step);
   }
 
-  return node;
+  return { node, steps: absolute };
+}
+
+export function lookup(root: Node, steps: Step[]): Node | null {
+  return locate(root, steps)?.node ?? null;
 }
 
 export function listing(text: string, root: Node, steps: Step[]): string[][] {
-  const selected = lookup(root, steps);
-  if (selected === null) {
+  const located = locate(root, steps);
+  if (located === null) {
     return [];
   }
 
@@ -90,6 +106,6 @@ export function listing(text: string, root: Node, steps: Step[]): string[][] {
     }
   }
 
-  visit(selected, steps);
+  visit(located.node, located.steps);
   return rows;
 }

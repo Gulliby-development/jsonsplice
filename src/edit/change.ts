@@ -69,13 +69,15 @@ export function insertValue(
   const { parent, before } = parentAt(root, steps);
   stepInto(parent, lastStep, before);
 
-  if (lastStep.index > parent.items.length) {
+  const position = lastStep.index < 0 ? parent.items.length + lastStep.index : lastStep.index;
+
+  if (position < 0 || position > parent.items.length) {
     throw new Fail(
       `cannot insert at ${stepText(lastStep)}: the array at ${pathText(before)} has ${plural(parent.items.length, "element")}`,
     );
   }
 
-  return insertBefore(text, parent, lastStep.index, renderValue(value.src, value.node), layout);
+  return insertBefore(text, parent, position, renderValue(value.src, value.node), layout);
 }
 
 export function deleteValue(text: string, root: Node, steps: Step[]): Edit[] | null {
